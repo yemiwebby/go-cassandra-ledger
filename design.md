@@ -27,7 +27,7 @@ This project closely models the real architecture published by Monzo in their [E
 
 ## Architecture Overview And System Components
 
-- **Ingestion API**: Accepts transactions (EnrtySets), persists them to Cassandra.
+- **Ingestion API**: Accepts transactions (EntrySets), persists them to Cassandra.
 - **Kafka Consumer(optional)**: Accepts events from a stream to populate the ledger.
 - **Balance Engine**: Computes balances using full scan or precomputed blocks.
 - **Config Loader**: Loads `address.yml` and `balance_definitions.yml` to abstract logic.
