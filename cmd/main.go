@@ -1,9 +1,14 @@
 package main
 
-import "fmt"
+import (
+	"log"
+
+	"github.com/yemiwebby/go-cassandra-ledger/internal/kafka"
+)
 
 func main() {
-	fmt.Println("Project initialized")
+	log.Println("Starting go-cassandra-ledger...")
+
+	go kafka.StartConsumer() // Kafka consumer goroutine
+	
 }
-
-
