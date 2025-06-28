@@ -1,12 +1,12 @@
 ## Overview
 
-`go-cassandra-ledger` is a Monzo-inspired, event-driven financial ledger system built in go and backed by Cassandra. It implements a production-grade, double-entry, append-only ledger with time-bucketed storage, balance definition abstraction, and scalable read/write pattern for modern FinTech systems.
+`go-cassandra-ledger` is a Monzo-inspired, event-driven financial ledger system built in Go (Golang) and backed by Cassandra. It implements a production-grade, double-entry, append-only ledger with time-bucketed storage, balance definition abstraction, and scalable read/write pattern for modern FinTech systems.
 
-This project closely models the real architecture published by Monzo in their [Engineering Blob](https://monzo.com/blog/2023/04/28/speeding-up-our-balance-read-time-the-planning-phase), and serves as an open-source educational tool, with all production constraints, patterns, and solutions considered part of the MVP.
+This project closely models the real architecture published by Monzo in their [Engineering Blog](https://monzo.com/blog/2023/04/28/speeding-up-our-balance-read-time-the-planning-phase), and serves as an open-source educational tool, with all production constraints, patterns, and solutions considered part of the MVP.
 
 ## Design Goals
 
-- Accurately model a double-entry ledger with clear transactionla integrity.
+- Accurately model a double-entry ledger with clear transactional integrity.
 - Support high-write throughput via append-only Cassandra design.
 - Support multiple balance types (e.g customer-facing, interest-chargeable)
 - Enable fast balance computation using precomputed blocks and parallel reads.
@@ -16,7 +16,7 @@ This project closely models the real architecture published by Monzo in their [E
 
 ## Key Concepts & Terminology
 
-- **Ledger**: Source of truth for all money movement, modeled as append-only dounble-entry bookkeeping.
+- **Ledger**: Source of truth for all money movement, modeled as append-only double-entry bookkeeping.
 - **EntrySet**: Group of one or more ledger entries representing a single money movement.
 - **Ledger Address**: A unique identifier for where money resides or flows (5-tuple: `legal_entity`, `namespace`, `name`, `currency`, `account_id`).
 - **Balance Name**: Label representing a logical balance type (e.g. `customer-facing-balance`, `interest-chargeable-balance`).
@@ -150,6 +150,67 @@ balances:
 | Bucket size   | Default: 1 month (adjustable)                                        |
 | Benefit       | Prevents unbounded partition growth, improves read/query performance |
 
+## Handling External Money Movement: Inbound Transfers
+
+In real-world banking systems, not all transactions originate within the institution's ledger. For example, a Monzo customer may receive money from an external bank or card network. Even in these cases, double-entry integrity must be preserved.
+
+To support this, we introduce the concept of synthetic internal ledger addresses to represent external systems.
+
+### Example: External Transfer into Customer Account
+
+When Bob (a Monzo user) receives £100 from an external bank, the ledger records:
+
+| Type   | Account ID            | Amount | Description                    |
+| ------ | --------------------- | ------ | ------------------------------ |
+| Debit  | external_inbound_bank | £100   | Inbound transfer from external |
+| Credit | bob456                | £100   | Received from Alice            |
+
+This EntrySet models a complete money movement:
+
+```json
+{
+  "entry_set_id": "uuid-7890",
+  "entries": [
+    {
+      "account_id": "external_inbound_bank",
+      "type": "debit",
+      "amount": 100.0,
+      "description": "Inbound transfer from external bank"
+    },
+    {
+      "account_id": "bob456",
+      "type": "credit",
+      "amount": 100.0,
+      "description": "Received from Alice"
+    }
+  ]
+}
+```
+
+### Synthetic Ledger Address: External Inbound Bank
+
+To support this logic, the system includes predefined internal ledger addresses for external systems:
+
+```yaml
+- account_id: external_inbound_bank
+  namespace: com.ledger.inbound
+  name: settlement
+  legal_entity: ledger_uk
+  currency: GBP
+```
+
+This ensures:
+
+- All money movement remains traceable within the ledger.
+- EntrySets are always balanced (sum to zero).
+- External payments rails (e.g FPS, Mastercard, BACS) can be reconciled against this account.
+
+### Benefits
+
+- Auditability: Every penny is accounted for, even across system boundaries.
+- Consistency: Double-entry integrity is maintained system-wide.
+- Extendability: Enables modeling of external-to-internal and internal-to-external transactions symmetrically.
+
 ## Testing & Simulation
 
 ### Phase 1: Bash Script
@@ -163,6 +224,18 @@ balances:
 - Build event-based simulator in Go.
 - Publishes EntrySet events (salary, ATM withdrawal, refunds, etc.)
 - `go-cassandra-ledger` listens via Kafka consumer and ingests live.
+
+## How the components work together
+
+A Kafka consumer can:
+
+- Listen to incoming events (from a topic).
+- Decode/process the message
+- Transform and validate
+- Directly insert into the database or
+- Call interrnal functions (like a balance engine) to do the work.
+
+![High-Level Architecture](./docs/images/high-level.png)
 
 ## Future Improvements
 
