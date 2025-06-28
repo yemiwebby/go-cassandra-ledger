@@ -3,15 +3,15 @@ package api
 import (
 	"log"
 	"net/http"
+
+	"github.com/yemiwebby/go-cassandra-ledger/internal/handlers/ledger"
+	"github.com/yemiwebby/go-cassandra-ledger/internal/routes"
 )
 
-func StartServer() {
+func StartServer(lh *ledger.LedgerHandler) {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	})
+	routes.LedgerRoutes(mux, lh)
 
 	log.Println("API server running on :8080")
 	if err := http.ListenAndServe(":8080", mux); err != nil {
