@@ -341,6 +341,20 @@ curl "http://localhost:8080/balance?name=customer-facing-balance&start=2024-01-0
 
 ```
 
+## Running Tests
+
+Unit Tests
+
+```bash
+go test ./... -v
+```
+
+Integration Tests
+
+```bash
+go test ./test/integration -v
+```
+
 ## Future Improvements
 
 - Implement `balance_blocks` for fast partial-sum lookups

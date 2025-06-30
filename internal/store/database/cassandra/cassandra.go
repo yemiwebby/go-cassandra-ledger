@@ -108,3 +108,9 @@ WHERE legal_entity = ? AND namespace = ? AND name = ? AND currency = ? AND accou
 
 	return results, nil
 }
+
+func (c *CassandraStore) Close() {
+	if c.session != nil {
+		c.session.Close()
+	}
+}
