@@ -1,42 +1,78 @@
 {
   "entries": [
     {
-      "account_id": "cash",
+      "address": {
+        "legal_entity": "fintech_uk",
+        "namespace": "com.fintech.account",
+        "name": "main",
+        "currency": "GBP",
+        "account_id": "*"
+      },
       "amount": 100,
       "type": "debit",
       "description": "Initial funding",
       "timestamp": 1727347200000
     },
     {
-      "account_id": "equity",
+      "address": {
+        "legal_entity": "fintech_uk",
+        "namespace": "com.fintech.equity",
+        "name": "owners",
+        "currency": "GBP",
+        "account_id": "*"
+      },
       "amount": 100,
       "type": "credit",
       "description": "Owner's equity",
       "timestamp": 1727347200000
     },
     {
-      "account_id": "cash",
+      "address": {
+        "legal_entity": "fintech_uk",
+        "namespace": "com.fintech.account",
+        "name": "main",
+        "currency": "GBP",
+        "account_id": "*"
+      },
       "amount": 50,
       "type": "debit",
       "description": "Client payment",
       "timestamp": 1727520000000
     },
     {
-      "account_id": "revenue",
+      "address": {
+        "legal_entity": "fintech_uk",
+        "namespace": "com.fintech.revenue",
+        "name": "general",
+        "currency": "GBP",
+        "account_id": "*"
+      },
       "amount": 50,
       "type": "credit",
       "description": "Income from service",
       "timestamp": 1727520000000
     },
     {
-      "account_id": "utilities",
+      "address": {
+        "legal_entity": "fintech_uk",
+        "namespace": "com.fintech.utilities",
+        "name": "electric",
+        "currency": "GBP",
+        "account_id": "*"
+      },
       "amount": 30,
       "type": "debit",
       "description": "Electricity bill",
       "timestamp": 1727606400000
     },
     {
-      "account_id": "cash",
+      "address": {
+        "legal_entity": "fintech_uk",
+        "namespace": "com.fintech.account",
+        "name": "main",
+        "currency": "GBP",
+        "account_id": "*"
+      },
       "amount": 30,
       "type": "credit",
       "description": "Paid utilities",

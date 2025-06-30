@@ -8,7 +8,7 @@ import (
 )
 
 func LedgerRoutes(mux *http.ServeMux, lh *ledger.LedgerHandler) {
-	mux.HandleFunc("/healthz", health.HealthCheckHandler)
-	mux.HandleFunc("/transaction", lh.TransactionHandler)
+	mux.HandleFunc("/health", health.HealthCheckHandler)
+	mux.HandleFunc("/transactions", lh.TransactionHandler)
 	mux.HandleFunc("/balance", lh.BalanceHandler)
 }

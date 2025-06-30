@@ -3,7 +3,7 @@ customer-facing-balance:
   addresses:
     - main_account_gbp
 
-revenue-balance:
+interest-chargeable-balance:
   time_axis: committed
   addresses:
     - revenue_account_gbp

@@ -12,7 +12,7 @@ CREATE TABLE ledger_entries (
     time_bucket text,
     committed_ts timestamp,
     type text,
-    amount decimal,
+    amount double,
     description text,
     PRIMARY KEY ((legal_entity, namespace, name, currency, account_id, time_bucket), committed_ts)
 );

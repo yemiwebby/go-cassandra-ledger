@@ -60,46 +60,50 @@ func (c *CassandraStore) GetEntries(
 	start, end time.Time,
 ) ([]entry.LedgerEntry, error) {
 
-	timeLayout := "2006-01"
-	startBucket := start.Format(timeLayout)
-	endBucket := end.Format(timeLayout)
-
-	query := `SELECT account_id, type, amount, description, committed_ts, reporting_ts
-			  FROM ledger_entries
-			  WHERE account_id = ? AND time_bucket >= ? AND time_bucket <= ?`
-
-	iter := c.session.Query(query, addr.AccountID, startBucket, endBucket).Iter()
-
 	var results []entry.LedgerEntry
-	var accountID, typ, desc string
-	var amount float64
-	var committedTs, reportingTs time.Time
+	timeLayout := "2006-01"
 
-	for iter.Scan(&accountID, &typ, &amount, &desc, &committedTs, &reportingTs) {
-		timestamp := committedTs.UnixMilli()
-		if timeAxis == "reporting" {
-			timestamp = reportingTs.UnixMilli()
+	// Generate a list of monthly time buckets from start to end
+	for current := start; !current.After(end); current = current.AddDate(0, 1, 0) {
+		bucket := current.Format(timeLayout)
+
+		query := `
+SELECT account_id, type, amount, description, committed_ts
+FROM ledger_entries
+WHERE legal_entity = ? AND namespace = ? AND name = ? AND currency = ? AND account_id = ? AND time_bucket = ?
+`
+
+		iter := c.session.Query(query,
+			addr.LegalEntity,
+			addr.Namespace,
+			addr.Name,
+			addr.Currency,
+			addr.AccountID,
+			bucket,
+		).Iter()
+
+		var accountID, typ, desc string
+		var amount float64
+		var committedTs time.Time
+
+		for iter.Scan(&accountID, &typ, &amount, &desc, &committedTs) {
+			timestamp := committedTs.UnixMilli()
+			ts := time.UnixMilli(timestamp)
+			if ts.Before(start) || ts.After(end) {
+				continue
+			}
+			results = append(results, entry.LedgerEntry{
+				Address:     addr,
+				Type:        typ,
+				Amount:      amount,
+				Description: desc,
+				Timestamp:   timestamp,
+			})
 		}
 
-		// Filter by the actual timestamp range
-		ts := time.UnixMilli(timestamp)
-		if ts.Before(start) || ts.After(end) {
-			continue
+		if err := iter.Close(); err != nil {
+			return nil, err
 		}
-
-		rTime := reportingTs.UnixMilli()
-		results = append(results, entry.LedgerEntry{
-			Address:       addr,
-			Type:          typ,
-			Amount:        amount,
-			Description:   desc,
-			Timestamp:     committedTs.UnixMilli(),
-			ReportingTime: &rTime,
-		})
-	}
-
-	if err := iter.Close(); err != nil {
-		return nil, err
 	}
 
 	return results, nil

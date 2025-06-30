@@ -1,61 +1,59 @@
 ## Overview
 
-`go-cassandra-ledger` is a Monzo-inspired, event-driven financial ledger system built in Go (Golang) and backed by Cassandra. It implements a production-grade, double-entry, append-only ledger with time-bucketed storage, balance definition abstraction, and scalable read/write pattern for modern FinTech systems.
+`go-cassandra-ledger` is a Monzo-inspired, event-driven financial ledger system built in Go (Golang) and backed by Cassandra. It implements a production-grade, double-entry, append-only ledger with time-bucketed storage, balance definition abstraction, and a scalable read/write pattern for modern FinTech systems.
 
-This project closely models the real architecture published by Monzo in their [Engineering Blog](https://monzo.com/blog/2023/04/28/speeding-up-our-balance-read-time-the-planning-phase), and serves as an open-source educational tool, with all production constraints, patterns, and solutions considered part of the MVP.
+This project closely models the real architecture published by Monzo in their [Engineering Blog](https://monzo.com/blog/2023/04/28/speeding-up-our-balance-read-time-the-planning-phase), and serves as an open-source educational tool with production-ready constraints, patterns, and solutions considered part of the MVP.
 
 ## Design Goals
 
-- Accurately model a double-entry ledger with clear transactional integrity.
-- Support high-write throughput via append-only Cassandra design.
-- Support multiple balance types (e.g customer-facing, interest-chargeable)
-- Enable fast balance computation using precomputed blocks and parallel reads.
-- Enable time-based filtering and snapshot queries.
-- Embrace real-world production patterns from Monzo's Architecture.
-- Maintain auditability via immutable entries and time axis design.
+- Model a robust double-entry ledger with strong transactional integrity.
+- Achieve high write throughput via an append-only Cassandra schema.
+- Support multiple balance types (e.g. `customer-facing`, `interest-chargeable`).
+- Enable fast balance computation using precomputed blocks and time bucketing.
+- Allow time-based filtering using `committed` or `reporting` axes.
+- Embrace real-world production patterns from Monzo’s architecture.
+- Maintain auditability with immutable entries and traceable transactions.
 
 ## Key Concepts & Terminology
 
-- **Ledger**: Source of truth for all money movement, modeled as append-only double-entry bookkeeping.
-- **EntrySet**: Group of one or more ledger entries representing a single money movement.
-- **Ledger Address**: A unique identifier for where money resides or flows (5-tuple: `legal_entity`, `namespace`, `name`, `currency`, `account_id`).
-- **Balance Name**: Label representing a logical balance type (e.g. `customer-facing-balance`, `interest-chargeable-balance`).
-- **Commited Timestamp**: Time when an entry is persisted in the ledger; used for partitioning.
-- **Reporting Timestamp**: Time when the entry takes accounting effect; used for financial reports.
-- **Balance Block**: Precomputed partial balance sums per address and time bucket for efficient reads.
-- **Time Axis**: Defines how time should be interpreted for balance reads; committed or reporting.
+- **Ledger**: Source of truth for all monetary transactions, using append-only double-entry bookkeeping.
+- **EntrySet**: A group of ledger entries representing a complete money movement.
+- **Ledger Address**: A unique 5-tuple key (`legal_entity`, `namespace`, `name`, `currency`, `account_id`) identifying an account.
+- **Balance Name**: Logical label representing a computed balance (e.g. `customer-facing-balance`).
+- **Committed Timestamp**: When the entry is persisted; used for partitioning.
+- **Reporting Timestamp**: When the transaction takes effect for accounting purposes.
+- **Time Axis**: Determines which timestamp to use when querying balances.
+- **Balance Block**: Precomputed aggregates per account and time bucket to speed up reads.
 
-## Architecture Overview And System Components
+## Architecture Overview
 
-- **Ingestion API**: Accepts transactions (EntrySets), persists them to Cassandra.
-- **Kafka Consumer(optional)**: Accepts events from a stream to populate the ledger.
-- **Balance Engine**: Computes balances using full scan or precomputed blocks.
-- **Config Loader**: Loads `address.yml` and `balance_definitions.yml` to abstract logic.
-- **Snapshot Generator**: Periodically saves balance snapshots (for `as_of` queries).
-- **Ledger Query API**: Exposes `/transactions`, `/balances`, `/snapshots`, etc.
-- **Healthcheck**: Exposes `/health` for liveness probes.
+- **Ingestion API**: Accepts transactions (`EntrySets`) and persists them to Cassandra.
+- **Balance Engine**: Computes balances via full scans or block-based optimizations.
+- **Config Loader**: Loads `address_config.yml` and `balance_definitions.yml`.
+- **Ledger Query API**: Exposes `/transactions`, `/balance`, and `/health` endpoints.
+- **Healthcheck Endpoint**: `/health` route for liveness and monitoring probes.
 
 ## Data Models
 
 1. **Ledger Entries Table (`ledger_entries`)**
 
-| Field        | Type                                       |
-| ------------ | ------------------------------------------ |
-| account_id   | TEXT                                       |
-| time_bucket  | TEXT (e.g. 2025-06)                        |
-| committed_ts | TIMESTAMP                                  |
-| reporting_ts | TIMESTAMP                                  |
-| txn_id       | UUID                                       |
-| type         | TEXT (credit or debit)                     |
-| amount       | DECIMAL                                    |
-| address      | TEXT (flattened string of 5-tuple)         |
-| description  | TEXT                                       |
-| flake_id     | TEXT (sortable ID with embedded timestamp) |
+| Field        | Type                               |
+| ------------ | ---------------------------------- |
+| account_id   | TEXT                               |
+| time_bucket  | TEXT (e.g. 2025-06)                |
+| committed_ts | TIMESTAMP                          |
+| reporting_ts | TIMESTAMP                          |
+| txn_id       | UUID                               |
+| type         | TEXT (credit or debit)             |
+| amount       | DECIMAL                            |
+| address      | TEXT (flattened string of 5-tuple) |
+| description  | TEXT                               |
 
 ```sql
 PRIMARY KEY ((account_id, time_bucket), committed_ts)
 ```
 
+<!--
 2. **Balance Blocks Table (`balance_blocks`)**
 
 | Field        | Type      |
@@ -83,72 +81,93 @@ Purpose:
 
 Purpose:
 
-- Supports queries like: "What was my balance on Jan 1, 2024?"
+- Supports queries like: "What was my balance on Jan 1, 2024?" -->
 
 4. Config Files (Versioned)
    `address_config.yml`
 
 ```yaml
-addresses:
-  - name: main
-    namespace: com.ledger
-    currency: GBP
-    legal_entity: ledger_uk
-    account_id: dynamic
+main_account_gbp:
+  legal_entity: fintech_uk
+  namespace: com.fintech.account
+  name: main
+  currency: GBP
+  account_id: "*"
+
+revenue_account_gbp:
+  legal_entity: fintech_uk
+  namespace: com.fintech.revenue
+  name: general
+  currency: GBP
+  account_id: "*"
+
+utilities_account_gbp:
+  legal_entity: fintech_uk
+  namespace: com.fintech.utilities
+  name: electric
+  currency: GBP
+  account_id: "*"
 ```
 
 `balance_definitions.yml`
 
 ```yaml
-balances:
-  - name: customer-facing-balance
-    time_axis: committed
-    address_names:
-      - main
-  - name: interest-chargeable-balance
-    time_axis: reporting
-    address_names:
-      - main
+customer-facing-balance:
+  time_axis: committed
+  addresses:
+    - main_account_gbp
+
+interest-chargeable-balance:
+  time_axis: committed
+  addresses:
+    - revenue_account_gbp
+
+utilities-expense-balance:
+  time_axis: committed
+  addresses:
+    - utilities_account_gbp
 ```
 
 ## API Endpoints
 
-| Method | Endpoint                               | Description                                      |
-| ------ | -------------------------------------- | ------------------------------------------------ |
-| POST   | /transactions                          | Ingest EntrySet (credit/debit pair)              |
-| GET    | /ledger/{account_id}                   | Fetch all ledger entries                         |
-| GET    | /balance/{account_id}                  | Compute live balance using blocks                |
-| GET    | /balance/{account_id}?as_of=2025-01-01 | Historical balance using snapshot + recent delta |
-| GET    | /snapshot/{account_id}                 | Get last known balance snapshot                  |
-| GET    | /healthz                               | Healthcheck                                      |
+| Method | Endpoint                            | Description                             |
+| ------ | ----------------------------------- | --------------------------------------- |
+| POST   | `/transaction`                      | Ingest an `EntrySet` (must be balanced) |
+| GET    | `/balance?name=X&start=...&end=...` | Compute balance by logical name         |
+| GET    | `/health`                           | Health check (returns 200 OK if alive)  |
 
 ## Balance Computation Logic
 
-### Option 1: Full Scan (fallback)
+1. Full Scan (MVP)
 
-- Fetch all entries in the address set for a balance.
-- Sum amounts (respecting time axis + balance type).
+- Fetch all entries matching balance address set.
 
-### Option 2: Block-Based
+- Filter entries based on committed_ts or reporting_ts.
 
-- Fetch `balance_blocks` sum for older buckets.
-- Fetch recent entries from current bucket.
-- Sum both for near-instant balance.
+- Sum based on credit/debit type.
 
-### Option 3: Historical Snapshot + Delta
+2. (Future) Block-Based
 
-- Use last snapshot (`as_of`)
-- Apply delta from entries > snapshot date.
-- Return `snapshot_balance + delta`.
+- Use balance_blocks to sum historical buckets.
+
+- Read most recent entries from ledger_entries for delta.
+
+- Merge results for fast reads.
+
+3. (Future) Snapshot + Delta
+
+- Store daily/monthly snapshots.
+
+- Use as base + apply delta from recent entries.
 
 ## Partitioning & Bucketing
 
-| Strategy      | Detail                                                               |
-| ------------- | -------------------------------------------------------------------- |
-| Partition key | account_id + time_bucket                                             |
-| Clustering    | committed_ts DESC                                                    |
-| Bucket size   | Default: 1 month (adjustable)                                        |
-| Benefit       | Prevents unbounded partition growth, improves read/query performance |
+| Strategy      | Value                                |
+| ------------- | ------------------------------------ |
+| Partition Key | `account_id`, `time_bucket`          |
+| Clustering    | `committed_ts DESC`                  |
+| Bucket Size   | 1 month                              |
+| Benefit       | Reduces partition size, speeds reads |
 
 ## Handling External Money Movement: Inbound Transfers
 
@@ -158,12 +177,10 @@ To support this, we introduce the concept of synthetic internal ledger addresses
 
 ### Example: External Transfer into Customer Account
 
-When Bob (a Monzo user) receives £100 from an external bank, the ledger records:
-
-| Type   | Account ID            | Amount | Description                    |
-| ------ | --------------------- | ------ | ------------------------------ |
-| Debit  | external_inbound_bank | £100   | Inbound transfer from external |
-| Credit | bob456                | £100   | Received from Alice            |
+| Type   | Account ID            | Amount | Description                  |
+| ------ | --------------------- | ------ | ---------------------------- |
+| Debit  | external_inbound_bank | £100   | Inbound from external source |
+| Credit | fintech_uk_main       | £100   | Received from external party |
 
 This EntrySet models a complete money movement:
 
@@ -192,11 +209,12 @@ This EntrySet models a complete money movement:
 To support this logic, the system includes predefined internal ledger addresses for external systems:
 
 ```yaml
-- account_id: external_inbound_bank
-  namespace: com.ledger.inbound
+external_inbound_bank:
+  legal_entity: fintech_uk
+  namespace: com.fintech.inbound
   name: settlement
-  legal_entity: ledger_uk
   currency: GBP
+  account_id: external
 ```
 
 This ensures:
@@ -213,6 +231,12 @@ This ensures:
 
 ## Testing & Simulation
 
+| Phase   | Description                                |
+| ------- | ------------------------------------------ |
+| Phase 1 | Manual curl + simulated `transaction.json` |
+| Phase 2 | Load tester script (bash or Go-based)      |
+| Phase 3 | Kafka simulator (event ingestion post-MVP) |
+
 ### Phase 1: Bash Script
 
 - Simulate realistic traffic by firing 1000+ transactions per user.
@@ -225,24 +249,19 @@ This ensures:
 - Publishes EntrySet events (salary, ATM withdrawal, refunds, etc.)
 - `go-cassandra-ledger` listens via Kafka consumer and ingests live.
 
-## How the components work together
+## High-Level Diagram
 
-A Kafka consumer can:
-
-- Listen to incoming events (from a topic).
-- Decode/process the message
-- Transform and validate
-- Directly insert into the database or
-- Call interrnal functions (like a balance engine) to do the work.
-
+This diagram illustrates the high-level architecture of the `go-cassandra-ledger` system, showing the key components and their interactions:
 ![High-Level Architecture](./docs/images/high-level.png)
 
 ## Future Improvements
 
-| Feature               | Benefit                                    |
-| --------------------- | ------------------------------------------ |
-| Adaptive bucketing    | High-activity users get smaller buckets    |
-| Balance change stream | Real-time push-based balance update events |
-| Smart fraud rules     | Anomaly scoring at ingestion               |
-| Parallel bucket reads | For power users with large history         |
-| Custom balance views  | Configurable by external teams or users    |
+| Feature                   | Benefit                                         |
+| ------------------------- | ----------------------------------------------- |
+| **Balance Blocks Table**  | Enables partial precomputed sums for fast reads |
+| **Snapshots Table**       | Allows historical `as_of` balance queries       |
+| Kafka consumer            | Ingest ledger entries from external systems     |
+| Real-time balance stream  | Push-based update events for balance watchers   |
+| Fraud rule scoring        | Detect anomalies at ingest time                 |
+| Parallel reads per bucket | Boost performance for high-volume users         |
+| Custom balance views      | Enable dynamic grouping/filtering               |

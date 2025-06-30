@@ -1,6 +1,6 @@
 # A backend focused ledger microservice built with Go and Cassandra.
 
-This is a lightweight, financial ledger service built with Go and Cassandra. It models an immutable, append-only transaction system designed for high-write scalability and time-series access. The project demonstrates clean backend architecture, event-style ledger recording, and efficient balance computation, all optimized for modern Fintech systems.
+This project was built to explore how FinTech companies like Monzo build scalable, auditable, and append-only ledger systems using Go and Cassandra — and to serve as a practical, testable foundation for financial backend infrastructure.
 
 ## Objectives
 
@@ -18,7 +18,7 @@ A ledger is an immutable, append-only data store used to track financial transac
 - **Immutable**: Once a transaction is recorded, it cannot be altered or deleted. Append-only. No updates, just new entries.
 - **Append-Only**: New transactions are added to the end of the ledger.
 - **Time-series Friendly**: Designed to handle time-series data efficiently, making it suitable for tracking changes over time. Sorted by timestamp.
-- Balance calculation is derived, not stored. The ledger does not store the current balance, but rather the individual transactions that can be used to calculate it.
+- - Balance calculation is derived from entries. Currently, only full-scan computation is implemented; precomputed blocks and snapshots are future improvements. The ledger does not store the current balance, but rather the individual transactions that can be used to calculate it.
 - **Event Sourcing**: The ledger can be used as an event store, where each transaction represents an event in the system. This allows for replaying events to reconstruct the state of the system at any point in time.
 
 ## Why Cassandra?
@@ -84,27 +84,89 @@ touch transaction.json
 {
   "entries": [
     {
-      "account_id": "cash",
+      "address": {
+        "legal_entity": "fintech_uk",
+        "namespace": "com.fintech.account",
+        "name": "main",
+        "currency": "GBP",
+        "account_id": "*"
+      },
+      "amount": 100,
       "type": "debit",
-      "amount": 100.0,
       "description": "Initial funding",
-      "timestamp": 1727347200000,
-      "reporting_time": 1727347200000
+      "timestamp": 1727347200000
     },
     {
-      "account_id": "equity",
+      "address": {
+        "legal_entity": "fintech_uk",
+        "namespace": "com.fintech.equity",
+        "name": "owners",
+        "currency": "GBP",
+        "account_id": "*"
+      },
+      "amount": 100,
       "type": "credit",
-      "amount": 100.0,
       "description": "Owner's equity",
-      "timestamp": 1727347200000,
-      "reporting_time": 1727347200000
+      "timestamp": 1727347200000
+    },
+    {
+      "address": {
+        "legal_entity": "fintech_uk",
+        "namespace": "com.fintech.account",
+        "name": "main",
+        "currency": "GBP",
+        "account_id": "*"
+      },
+      "amount": 50,
+      "type": "debit",
+      "description": "Client payment",
+      "timestamp": 1727520000000
+    },
+    {
+      "address": {
+        "legal_entity": "fintech_uk",
+        "namespace": "com.fintech.revenue",
+        "name": "general",
+        "currency": "GBP",
+        "account_id": "*"
+      },
+      "amount": 50,
+      "type": "credit",
+      "description": "Income from service",
+      "timestamp": 1727520000000
+    },
+    {
+      "address": {
+        "legal_entity": "fintech_uk",
+        "namespace": "com.fintech.utilities",
+        "name": "electric",
+        "currency": "GBP",
+        "account_id": "*"
+      },
+      "amount": 30,
+      "type": "debit",
+      "description": "Electricity bill",
+      "timestamp": 1727606400000
+    },
+    {
+      "address": {
+        "legal_entity": "fintech_uk",
+        "namespace": "com.fintech.account",
+        "name": "main",
+        "currency": "GBP",
+        "account_id": "*"
+      },
+      "amount": 30,
+      "type": "credit",
+      "description": "Paid utilities",
+      "timestamp": 1727606400000
     }
   ]
 }
 ```
 
 ```bash
-curl -X POST http://localhost:8080/transaction \
+curl -X POST http://localhost:8080/transactions \
   -H "Content-Type: application/json" \
   -d @transaction.json
 ```
@@ -123,24 +185,30 @@ SELECT * FROM ledger_entries;
 ```sql
 cqlsh:ledger> SELECT \* FROM ledger_entries;
 
-account_id | time_bucket | committed_ts | amount | description | type
-------------+-------------+---------------------------------+--------+---------------------+--------
-|revenue    | 2024-09    | 2024-09-28 10:40:00.000000+0000 | 50     | Income from service | credit
-|cash       | 2024-09    | 2024-09-26 10:40:00.000000+0000 | 100    | Initial funding     | debit
-|cash       | 2024-09    | 2024-09-28 10:40:00.000000+0000 | 50     | Client payment      | debit
-|cash       | 2024-09    | 2024-09-29 10:40:00.000000+0000 | 30     | Paid utilities      | credit
-|equity     | 2024-09    | 2024-09-26 10:40:00.000000+0000 | 100    | Owner's equity     | credit
-|utilities  | 2024-09    | 2024-09-29 10:40:00.000000+0000 | 30     | Electricity bill    | debit
+ legal_entity | namespace             | name     | currency | account_id | time_bucket | committed_ts                    | amount | description         | type
+--------------+-----------------------+----------+----------+------------+-------------+---------------------------------+--------+---------------------+--------
+   fintech_uk |    com.fintech.equity |   owners |      GBP |          * |     2024-09 | 2024-09-26 10:40:00.000000+0000 |    100 |      Owner's equity | credit
+   fintech_uk | com.fintech.utilities | electric |      GBP |          * |     2024-09 | 2024-09-29 10:40:00.000000+0000 |     30 |    Electricity bill |  debit
+   fintech_uk |   com.fintech.revenue |  general |      GBP |          * |     2024-09 | 2024-09-28 10:40:00.000000+0000 |     50 | Income from service | credit
+   fintech_uk |   com.fintech.account |     main |      GBP |          * |     2024-09 | 2024-09-26 10:40:00.000000+0000 |    100 |     Initial funding |  debit
+   fintech_uk |   com.fintech.account |     main |      GBP |          * |     2024-09 | 2024-09-28 10:40:00.000000+0000 |     50 |      Client payment |  debit
+   fintech_uk |   com.fintech.account |     main |      GBP |          * |     2024-09 | 2024-09-29 10:40:00.000000+0000 |     30 |      Paid utilities | credit
 ```
 
 (6 rows)
+
+### Truncate the ledger_entries table
+
+```sql
+TRUNCATE ledger_entries;
+```
 
 ## Primary Key Structure in ledger_entries
 
 The table uses a composite primary key:
 
 ```sql
-PRIMARY KEY ((account_id, time_bucket), committed_ts)
+PRIMARY KEY ((legal_entity, namespace, name, currency, account_id, time_bucket), committed_ts)
 ```
 
 This breaks down as:
@@ -272,3 +340,11 @@ curl -X POST http://localhost:8080/transaction \
 curl "http://localhost:8080/balance?name=customer-facing-balance&start=2024-01-01T00:00:00Z&end=2025-12-31T23:59:59Z"
 
 ```
+
+## Future Improvements
+
+- Implement `balance_blocks` for fast partial-sum lookups
+- Add support for historical snapshots (`as_of` balance)
+- Kafka-based ingestion for event-sourced pipelines
+- Enhanced testing with time-skewed entries and edge cases
+- Parallelized reads for high-volume accounts

@@ -33,7 +33,6 @@ func (lh *LedgerHandler) BalanceHandler(w http.ResponseWriter, r *http.Request) 
 		go func(a config.LedgerAddress) {
 			defer wg.Done()
 
-			// lh.TransactionHandler()
 			entries, err := lh.Engine.Store.GetEntries(a, def.TimeAxis, startTs, endTs)
 			if err != nil {
 				errCh <- err
