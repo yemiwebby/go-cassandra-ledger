@@ -3,12 +3,16 @@ WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};
 
 USE ledger;
 
-CREATE TABLE IF NOT EXISTS ledger_entries (
-    account_id TEXT,
-    time_bucket TEXT,
-    committed_ts TIMESTAMP,
-    type TEXT,
-    amount DECIMAL,
-    description TEXT,
-    PRIMARY KEY ((account_id, time_bucket), committed_ts)
-) WITH CLUSTERING ORDER BY (committed_ts DESC);
+CREATE TABLE ledger_entries (
+    legal_entity text,
+    namespace text,
+    name text,
+    currency text,
+    account_id text,
+    time_bucket text,
+    committed_ts timestamp,
+    type text,
+    amount decimal,
+    description text,
+    PRIMARY KEY ((legal_entity, namespace, name, currency, account_id, time_bucket), committed_ts)
+);

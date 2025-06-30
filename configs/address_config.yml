@@ -1,0 +1,20 @@
+main_account_gbp:
+  legal_entity: seafinance_uk
+  namespace: io.seafinance.account
+  name: main
+  currency: GBP
+  account_id: "*"
+
+revenue_account_gbp:
+  legal_entity: seafinance_uk
+  namespace: io.seafinance.revenue
+  name: general
+  currency: GBP
+  account_id: "*"
+
+utilities_account_gbp:
+  legal_entity: seafinance_uk
+  namespace: io.seafinance.utilities
+  name: electric
+  currency: GBP
+  account_id: "*"

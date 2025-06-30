@@ -34,5 +34,5 @@ func (lh *LedgerHandler) TransactionHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("EntrySet recorded"))
+	w.Write([]byte("EntrySet recorded\n"))
 }

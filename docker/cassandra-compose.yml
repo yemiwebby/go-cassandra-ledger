@@ -11,6 +11,7 @@ services:
       - CASSANDRA_CLUSTER_NAME=LedgerCluster
     volumes:
       - cassandra_data:/var/lib/cassandra
+      - ./docker/init.cql:/docker-entrypoint-initdb.d/init.cql
     healthcheck:
       test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces'"]
       interval: 10s

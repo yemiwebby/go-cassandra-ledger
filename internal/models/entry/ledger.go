@@ -4,16 +4,17 @@ import (
 	"errors"
 	"math"
 
+	"github.com/yemiwebby/go-cassandra-ledger/internal/models/config"
 	"github.com/yemiwebby/go-cassandra-ledger/internal/models/input"
 )
 
 type LedgerEntry struct {
-	AccountID     string
+	Address       config.LedgerAddress
 	Type          string // credit or debit
 	Amount        float64
 	Description   string
 	Timestamp     int64
-	ReportingTime int64
+	ReportingTime *int64
 }
 
 type EntrySet struct {
@@ -32,14 +33,25 @@ const (
 
 func NewLedgerEntry(input input.EntrySetInput) EntrySet {
 	var entries []LedgerEntry
-	for _, e := range input.Entries {
+	for _, entry := range input.Entries {
+		rTime := int64(0)
+		if entry.ReportingTime != nil {
+			rTime = *entry.ReportingTime
+		}
+
 		entries = append(entries, LedgerEntry{
-			AccountID:     e.AccountID,
-			Type:          e.Type,
-			Amount:        e.Amount,
-			Description:   e.Description,
-			Timestamp:     e.Timestamp,
-			ReportingTime: e.ReportingTime,
+			Address: config.LedgerAddress{
+				LegalEntity: entry.Address.LegalEntity,
+				Namespace:   entry.Address.Namespace,
+				Name:        entry.Address.Name,
+				Currency:    entry.Address.Currency,
+				AccountID:   entry.Address.AccountID,
+			},
+			Type:          entry.Type,
+			Amount:        entry.Amount,
+			Description:   entry.Description,
+			Timestamp:     entry.Timestamp,
+			ReportingTime: &rTime,
 		})
 	}
 

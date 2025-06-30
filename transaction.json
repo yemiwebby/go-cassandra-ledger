@@ -1,0 +1,46 @@
+{
+  "entries": [
+    {
+      "account_id": "cash",
+      "amount": 100,
+      "type": "debit",
+      "description": "Initial funding",
+      "timestamp": 1727347200000
+    },
+    {
+      "account_id": "equity",
+      "amount": 100,
+      "type": "credit",
+      "description": "Owner's equity",
+      "timestamp": 1727347200000
+    },
+    {
+      "account_id": "cash",
+      "amount": 50,
+      "type": "debit",
+      "description": "Client payment",
+      "timestamp": 1727520000000
+    },
+    {
+      "account_id": "revenue",
+      "amount": 50,
+      "type": "credit",
+      "description": "Income from service",
+      "timestamp": 1727520000000
+    },
+    {
+      "account_id": "utilities",
+      "amount": 30,
+      "type": "debit",
+      "description": "Electricity bill",
+      "timestamp": 1727606400000
+    },
+    {
+      "account_id": "cash",
+      "amount": 30,
+      "type": "credit",
+      "description": "Paid utilities",
+      "timestamp": 1727606400000
+    }
+  ]
+}

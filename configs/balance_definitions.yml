@@ -1,0 +1,14 @@
+customer-facing-balance:
+  time_axis: committed
+  addresses:
+    - main_account_gbp
+
+revenue-balance:
+  time_axis: committed
+  addresses:
+    - revenue_account_gbp
+
+utilities-expense-balance:
+  time_axis: committed
+  addresses:
+    - utilities_account_gbp
